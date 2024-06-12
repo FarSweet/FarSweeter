@@ -1,0 +1,576 @@
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src
+├── app
+│   ├── actions
+│   │   ├── auth.ts
+│   │   └── gate-condition.ts
+│   ├── components
+│   │   ├── Navbar.tsx
+│   │   └── Sidebar.tsx
+│   ├── consts
+│   │   ├── LoginButton.tsx
+│   │   ├── client.ts
+│   │   ├── fetchUserProfile.ts
+│   │   └── thirdwebAuth.ts
+│   ├── gated-page
+│   │   ├── GatedContent.tsx
+│   │   └── page.tsx
+│   ├── globals.css
+│   ├── layout.tsx
+│   ├── page.tsx
+│   ├── tool-one
+│   │   └── page.tsx
+│   └── tool-two
+│       └── page.tsx
+└── pages
+    └── api
+
+10 directories, 15 files
+
+
+Contents of the files:
+
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/tool-one/page.tsx:
+
+"use client";
+
+export default function ToolOne() {
+  return (
+    <div>
+      <h1>Tool One</h1>
+      <p>Only logged in users can use this tool once.</p>
+    </div>
+  );
+}
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/tool-two/page.tsx:
+
+"use client";
+
+export default function ToolTwo() {
+  return (
+    <div>
+      <h1>Tool Two</h1>
+      <p>Only users with Pro access can use this tool up to 20 times.</p>
+    </div>
+  );
+}
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/components/Navbar.tsx:
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { ConnectButton, useActiveAccount } from "thirdweb/react";
+import { fetchUserProfile } from "../consts/fetchUserProfile";
+import { generatePayload, isLoggedIn, login, logout } from "../actions/auth";
+import { createWallet } from "thirdweb/wallets";
+import { client } from "../consts/client";
+import { hasAccess } from "../actions/gate-condition";
+interface UserProfile {
+  pfp_url: string;
+  display_name: string;
+  username: string;
+}
+
+
+const wallets = [
+  createWallet("io.metamask"),
+  createWallet("com.coinbase.wallet"),
+  createWallet("me.rainbow"),
+];
+
+const Navbar = () => {
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [hasNFTAccess, setHasNFTAccess] = useState(false);
+  const account = useActiveAccount();
+
+  useEffect(() => {
+    if (account) {
+      fetchUserProfile(account.address)
+        .then((profile) => {
+          if (profile) setUserProfile(profile);
+        })
+        .catch((error) => console.error("Error fetching profile:", error));
+
+      hasAccess(account.address).then((access) => setHasNFTAccess(access));
+    }
+  }, [account]);
+
+  return (
+    <header className="bg-gray-900 shadow-md">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <MountainIcon className="w-6 h-6 text-white" />
+          <h1 className="text-lg font-bold text-white">Acme Inc.</h1>
+        </div>
+        <nav className="flex items-center gap-4">
+          <Link href="/" className="text-gray-400 hover:text-white transition-colors" prefetch={false}>Home</Link>
+          <Link href="/tool-one" className="text-gray-400 hover:text-white transition-colors" prefetch={false}>Tool One</Link>
+          <Link href="/tool-two" className="text-gray-400 hover:text-white transition-colors" prefetch={false}>Tool Two</Link>
+          {userProfile && (
+            <>
+              <img src={userProfile.pfp_url} alt="Profile Picture" className="w-8 h-8 rounded-full" />
+              <span className="text-secondary">{userProfile.display_name}</span>
+              <span className="ml-2 text-secondary">{userProfile.username}</span>
+            </>
+          )}
+          <ConnectButton
+            autoConnect={true}
+            client={client}
+            wallets={wallets}
+            auth={{
+              isLoggedIn: async (address) => await isLoggedIn(),
+              doLogin: async (params) => await login(params),
+              getLoginPayload: async ({ address }) => await generatePayload({ address }),
+              doLogout: async () => await logout(),
+            }}
+          />
+          {hasNFTAccess && <span className="ml-4 text-green-500">Pro Access</span>}
+        </nav>
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;
+
+const MountainIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+  </svg>
+);
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/components/Sidebar.tsx:
+
+import Link from "next/link";
+
+const Sidebar = () => {
+  return (
+    <div className="bg-gradient-to-b from-gray-900 to-gray-800 shadow-xl rounded-r-3xl w-64 p-6 flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <MountainIcon className="w-8 h-8 text-white" />
+        <h1 className="text-2xl font-bold text-white">Acme Inc.</h1>
+      </div>
+      <nav className="flex flex-col gap-2">
+        <div className="text-gray-400 font-medium">Main</div>
+        <Link href="/" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+          <HomeIcon className="w-5 h-5" />
+          Home
+        </Link>
+        <Link href="/tool-one" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+          <CompassIcon className="w-5 h-5" />
+          Tool One
+        </Link>
+        <Link href="/tool-two" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+          <ActivityIcon className="w-5 h-5" />
+          Tool Two
+        </Link> 
+        <div  className="text-gray-400 font-medium mt-4">Discover</div>
+        <Link href="/gated-page" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+          <LayersIcon className="w-5 h-5" />
+          Gated Page
+        </Link>
+        <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+          <BookmarkIcon className="w-5 h-5" />
+          Saved
+        </Link>
+        <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+          <TrendingUpIcon className="w-5 h-5" />
+          Trending
+        </Link>
+      </nav>
+    </div>
+  );
+};
+
+export default Sidebar;
+
+const MountainIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m8 3 4 8 5-5 5 15H2L8 3z" />
+  </svg>
+);
+
+const HomeIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+
+const CompassIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" />
+    <circle cx="12" cy="12" r="10" />
+  </svg>
+);
+
+const ActivityIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
+  </svg>
+);
+
+const LayersIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+    <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" />
+    <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" />
+  </svg>
+);
+
+const BookmarkIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+  </svg>
+);
+
+const TrendingUpIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+    <polyline points="16 7 22 7 22 13" />
+  </svg>
+);
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/layout.tsx:
+
+"use client";
+
+import { ThirdwebProvider } from "thirdweb/react";
+import "./globals.css";
+import Sidebar from "./components/Sidebar";
+import Navbar from "./components/Navbar";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className="dark">
+      <body>
+        <ThirdwebProvider>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <div className="flex-1 bg-gray-800 text-white">
+              <Navbar />
+              <div className="p-4">{children}</div>
+            </div>
+          </div>
+        </ThirdwebProvider>
+      </body>
+    </html>
+  );
+}
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/actions/gate-condition.ts:
+
+// src/app/actions/gate-condition.ts
+import { getContract } from "thirdweb";
+import { avalancheFuji, base } from "thirdweb/chains";
+import { client } from "../consts/client";
+import { balanceOf as balanceOfERC721 } from "thirdweb/extensions/erc721";
+import { balanceOf as balanceOfERC20 } from "thirdweb/extensions/erc20";
+
+export async function hasAccess(address: string): Promise<boolean> {
+  return await example_hasSomeErc721Tokens(address);
+  // return await example_hasSomeErc20Tokens(address);
+}
+
+async function example_hasSomeErc721Tokens(address: string) {
+  const requiredQuantity = 1n;
+
+  const erc721Contract = getContract({
+    address: "0xff63fC310D47ef80961056AC8Df0B3f1a9e3eF58",
+    chain: base,
+    client,
+  });
+
+  const ownedBalance = await balanceOfERC721({
+    contract: erc721Contract,
+    owner: address,
+  });
+
+  console.log({ ownedBalance });
+
+  return ownedBalance >= requiredQuantity;
+}
+
+async function example_hasSomeErc20Tokens(address: string) {
+  const requiredQuantity = 10n; // 10 erc20 token
+
+  const erc20Contract = getContract({
+    address: "0xff63fC310D47ef80961056AC8Df0B3f1a9e3eF58",
+    chain: avalancheFuji,
+    client,
+  });
+
+  const ownedBalance = await balanceOfERC20({
+    contract: erc20Contract,
+    address,
+  });
+
+  console.log({ ownedBalance });
+
+  return ownedBalance >= requiredQuantity;
+}
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/actions/auth.ts:
+
+"use server";
+import { VerifyLoginPayloadParams } from "thirdweb/auth";
+import { cookies } from "next/headers";
+import { thirdwebAuth } from "../consts/thirdwebAuth";
+
+export const generatePayload = thirdwebAuth.generatePayload;
+
+export async function login(payload: VerifyLoginPayloadParams) {
+  const verifiedPayload = await thirdwebAuth.verifyPayload(payload);
+  console.log({ payload });
+  if (verifiedPayload.valid) {
+    const jwt = await thirdwebAuth.generateJWT({
+      payload: verifiedPayload.payload,
+    });
+    console.log({ jwt });
+    cookies().set("jwt", jwt);
+  }
+}
+
+export async function isLoggedIn() {
+  const jwt = cookies().get("jwt");
+  if (!jwt?.value) {
+    return false;
+  }
+
+  const authResult = await thirdwebAuth.verifyJWT({ jwt: jwt.value });
+  console.log({ authResult });
+  if (!authResult.valid) {
+    return false;
+  }
+  return true;
+}
+
+export async function logout() {
+  cookies().delete("jwt");
+}
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/page.tsx:
+
+"use client";
+
+import { useActiveAccount } from "thirdweb/react";
+
+export default function Home() {
+  const account = useActiveAccount();
+  return (
+    <div className="p-4">
+      <h1 className="text-3xl font-bold text-primary">Welcome to My SaaS App</h1>
+      {account && (
+        <div className="mt-12 text-center text-secondary">
+          You are logged in.
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/gated-page/GatedContent.tsx:
+
+"use client";
+import { LoginButton } from "../consts/LoginButton";
+
+export const GatedContent = () => {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800 text-white">
+      <div className="mx-auto">
+        <LoginButton />
+      </div>
+      <div className="text-center mt-12 text-secondary">
+        Welcome, stranger. Only a selected few can see this message. You are rare!
+      </div>
+    </div>
+  );
+};
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/gated-page/page.tsx:
+
+import { cookies } from "next/headers";
+import { thirdwebAuth } from "../consts/thirdwebAuth";
+import { hasAccess } from "../actions/gate-condition";
+import { GatedContent } from "./GatedContent";
+
+export default async function GatedPage() {
+  const jwt = cookies().get("jwt");
+  if (!jwt?.value) {
+    return <MustLogin />;
+  }
+
+  const authResult = await thirdwebAuth.verifyJWT({ jwt: jwt.value });
+  console.log({ authResult });
+  if (!authResult.valid) {
+    return <MustLogin />;
+  }
+
+  const address = authResult.parsedJWT.sub;
+  console.log({ paredResult: authResult.parsedJWT });
+  if (!address) throw new Error("could not get wallet address");
+
+  const _hasAccess = await hasAccess(address);
+  if (!_hasAccess) return <NotAllowed />;
+
+  return <GatedContent />;
+}
+
+const MustLogin = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800 text-white">
+    <div className="text-center">
+      You are not logged in. <br />
+      <a href="/" className="underline text-primary">
+        Log in now
+      </a>
+    </div>
+  </div>
+);
+
+const reason = "you do not own any NFT";
+
+const NotAllowed = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800 text-white">
+    <div className="text-center">
+      You are logged in but you do not have access to this page because {reason}
+    </div>
+  </div>
+);
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/consts/thirdwebAuth.ts:
+
+import { createAuth } from "thirdweb/auth";
+import { privateKeyToAccount } from "thirdweb/wallets";
+import { client } from "./client";
+
+const privateKey = process.env.THIRDWEB_ADMIN_PRIVATE_KEY || "";
+
+if (!privateKey) {
+  throw new Error("Missing THIRDWEB_ADMIN_PRIVATE_KEY in .env file.");
+}
+
+export const thirdwebAuth = createAuth({
+  domain: process.env.NEXT_PUBLIC_THIRDWEB_AUTH_DOMAIN || "",
+  adminAccount: privateKeyToAccount({ client, privateKey }),
+});
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/consts/LoginButton.tsx:
+
+"use client";
+
+import { ConnectButton } from "thirdweb/react";
+import { client } from "./client";
+import { generatePayload, isLoggedIn, login, logout } from "../actions/auth";
+import { createWallet, inAppWallet } from "thirdweb/wallets";
+
+const wallets = [
+  
+  createWallet("io.metamask"),
+  createWallet("com.coinbase.wallet"),
+  createWallet("me.rainbow"),
+];
+
+export const LoginButton = () => {
+  return (
+    <ConnectButton
+      autoConnect={true}
+      client={client}
+      wallets={wallets}
+      auth={{
+        isLoggedIn: async (address) => {
+          console.log("checking if logged in!", { address });
+          return await isLoggedIn();
+        },
+        doLogin: async (params) => {
+          console.log("logging in!");
+          await login(params);
+        },
+        getLoginPayload: async ({ address }) => generatePayload({ address }),
+        doLogout: async () => {
+          console.log("logging out!");
+          await logout();
+        },
+      }}
+    />
+  );
+};
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/consts/client.ts:
+
+import { createThirdwebClient } from "thirdweb";
+
+export const client = createThirdwebClient({
+  clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID as string,
+});
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/consts/fetchUserProfile.ts:
+
+import fetch from "node-fetch";
+
+// Directly setting the API key for testing purposes
+const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API || ""
+const url = "https://api.neynar.com/v2/farcaster/user/bulk-by-address";
+
+export async function fetchUserProfile(address: string) {
+  
+
+  const options = {
+    method: "GET",
+    headers: {
+      accept: "application/json",
+      api_key: apiKey,
+    },
+  };
+
+  console.log("Request options:", options);
+
+  try {
+    const response = await fetch(`${url}?addresses=${address}&viewer_fid=3`, options);
+    console.log("Response status:", response.status);
+    console.log("Response headers:", response.headers);
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Unauthorized: Invalid API key or insufficient permissions");
+      } else {
+        throw new Error(`Error: ${response.statusText}`);
+      }
+    }
+
+    const data = await response.json();
+    console.log("Response data:", data);
+
+    // Check if the address key exists and has an array with at least one element
+    if (data[address.toLowerCase()] && data[address.toLowerCase()].length > 0) {
+      const userProfile = data[address.toLowerCase()][0];
+      console.log("User profile found:", userProfile);
+      return {
+        pfp_url: userProfile.pfp_url,
+        display_name: userProfile.display_name,
+        username: userProfile.username,
+      };
+    } else {
+      console.error("User profile data not found for address:", address);
+      console.error("Data structure received:", data);
+      throw new Error("User profile data not found");
+    }
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    throw error;
+  }
+}
