@@ -1,14 +1,20 @@
-import fetch from "node-fetch";
+import axios from 'axios'; // Use axios
+
+// Define the NeynarResponse type
+type NeynarResponse = {
+  [key: string]: {
+    pfp_url: string;
+    display_name: string;
+    username: string;
+  }[];
+};
 
 // Directly setting the API key for testing purposes
-const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API || ""
+const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API || "";
 const url = "https://api.neynar.com/v2/farcaster/user/bulk-by-address";
 
 export async function fetchUserProfile(address: string) {
-  
-
   const options = {
-    method: "GET",
     headers: {
       accept: "application/json",
       api_key: apiKey,
@@ -18,19 +24,15 @@ export async function fetchUserProfile(address: string) {
   console.log("Request options:", options);
 
   try {
-    const response = await fetch(`${url}?addresses=${address}&viewer_fid=3`, options);
+    const response = await axios.get(`${url}?addresses=${address}&viewer_fid=3`, options);
     console.log("Response status:", response.status);
     console.log("Response headers:", response.headers);
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error("Unauthorized: Invalid API key or insufficient permissions");
-      } else {
-        throw new Error(`Error: ${response.statusText}`);
-      }
+    if (response.status === 401) {
+      throw new Error("Unauthorized: Invalid API key or insufficient permissions");
     }
 
-    const data = await response.json();
+    const data: NeynarResponse = response.data as NeynarResponse;
     console.log("Response data:", data);
 
     // Check if the address key exists and has an array with at least one element

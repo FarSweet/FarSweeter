@@ -1,11 +1,31 @@
-// src/app/actions/gate-condition.ts
 import { getContract } from "thirdweb";
 import { base, zora } from "thirdweb/chains";
 import { client } from "../consts/client";
 import { balanceOf as balanceOfERC721 } from "thirdweb/extensions/erc721";
 import { balanceOf as balanceOfERC20 } from "thirdweb/extensions/erc20";
 import { getOwnedNFTs } from "thirdweb/extensions/erc1155";
-import fetch from 'node-fetch'; // Import node-fetch
+import axios from 'axios'; // Use axios
+
+// Define the response type for GraphQL
+type GraphQLResponse = {
+  data: {
+    TokenBalances: {
+      TokenBalance: {
+        owner: {
+          addresses: string[];
+          domains: { name: string; isPrimary: boolean }[];
+          socials: {
+            dappName: string;
+            profileName: string;
+            userAssociatedAddresses: string[];
+          }[];
+          xmtp: { isXMTPEnabled: boolean }[];
+        };
+      }[];
+    };
+  };
+  errors?: any[];
+};
 
 // Airstack API key and URL
 const API_KEY = process.env.NEXT_PUBLIC_AIRSTACK_API as string;
@@ -22,7 +42,7 @@ export async function hasAccess(address: string): Promise<boolean> {
 }
 
 // Airstack check for ERC1155 tokens
-async function hasSomeErc1155TokensAirstack(address: string) {
+async function hasSomeErc1155TokensAirstack(address: string): Promise<boolean> {
   console.log(`Checking ERC1155 tokens for address: ${address} using Airstack`);
 
   const specificTokenAddress = "0xc45D05a4a77351DE33504fB535a07A5B6aB7d5fc"; // Adjust if necessary
@@ -59,16 +79,14 @@ async function hasSomeErc1155TokensAirstack(address: string) {
   `;
 
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
+    const response = await axios.post(API_URL, { query }, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({ query })
+      }
     });
 
-    const result = await response.json();
+    const result: GraphQLResponse = response.data as GraphQLResponse;
 
     if (result.errors) {
       console.error("GraphQL errors:", result.errors);
