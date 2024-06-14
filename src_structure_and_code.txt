@@ -23,8 +23,9 @@
 │       └── page.tsx
 └── pages
     └── api
+        └── downloadVideo.js
 
-10 directories, 15 files
+10 directories, 16 files
 
 
 Contents of the files:
@@ -34,12 +35,43 @@ Contents of the files:
 /Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/tool-one/page.tsx:
 
 "use client";
+import { useState } from "react";
 
 export default function ToolOne() {
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      console.log("Initiating download...");
+      const response = await fetch("/api/downloadVideo?url=https://warpcast.com/kenny/0x5dcd36a9");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = "output.mp4";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      console.log("Video download started");
+    } catch (error) {
+      console.error("Error downloading video:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div>
       <h1>Tool One</h1>
       <p>Only logged in users can use this tool once.</p>
+      <button onClick={handleDownload} disabled={loading}>
+        {loading ? "Downloading..." : "Download Video"}
+      </button>
     </div>
   );
 }
@@ -273,7 +305,6 @@ import { base, zora } from "thirdweb/chains";
 import { client } from "../consts/client";
 import { balanceOf as balanceOfERC721 } from "thirdweb/extensions/erc721";
 import { balanceOf as balanceOfERC20 } from "thirdweb/extensions/erc20";
-import { getOwnedNFTs } from "thirdweb/extensions/erc1155";
 import axios from 'axios'; // Use axios
 
 // Define the response type for GraphQL
@@ -570,6 +601,7 @@ import { cookies } from "next/headers";
 import { thirdwebAuth } from "../consts/thirdwebAuth";
 import { hasAccess } from "../actions/gate-condition";
 import { GatedContent } from "./GatedContent";
+import { LoginButton } from "../consts/LoginButton";
 
 export default async function GatedPage() {
   const jwt = cookies().get("jwt");
@@ -597,6 +629,8 @@ const MustLogin = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800 text-white">
     <div className="text-center">
       You are not Signed in. <br />
+      <LoginButton />
+      
       
       <p  className="underline text-primary">
         Log in now
@@ -743,3 +777,114 @@ export async function fetchUserProfile(address: string) {
     throw error;
   }
 }
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/pages/api/downloadVideo.js:
+
+import puppeteer from 'puppeteer';
+import ffmpeg from 'fluent-ffmpeg';
+import path from 'path';
+import fs from 'fs';
+import axios from 'axios';
+import os from 'os';
+
+async function getM3U8Urls(pageUrl) {
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+  const m3u8Urls = [];
+
+  page.on('request', request => {
+    if (request.url().includes('.m3u8')) {
+      console.log(`Intercepted .m3u8 URL: ${request.url()}`);
+      m3u8Urls.push(request.url());
+    }
+  });
+
+  await page.goto(pageUrl, { waitUntil: 'networkidle0' });
+  await browser.close();
+
+  if (m3u8Urls.length === 0) {
+    throw new Error('Failed to find any .m3u8 URL');
+  }
+
+  return m3u8Urls;
+}
+
+async function findVideoM3U8(m3u8Urls) {
+  for (const url of m3u8Urls) {
+    console.log(`Checking .m3u8 URL: ${url}`);
+    const response = await axios.get(url);
+    const content = response.data;
+
+    // Check if the .m3u8 content references video segments
+    if (content.includes('#EXT-X-STREAM-INF')) {
+      console.log(`Selected .m3u8 URL: ${url}`);
+      return url;
+    }
+  }
+
+  throw new Error('No valid video .m3u8 URL found');
+}
+
+async function downloadVideo(m3u8Url) {
+  const tempDir = os.tmpdir();
+  const outputFilePath = path.join(tempDir, 'output.mp4');
+
+  return new Promise((resolve, reject) => {
+    console.log(`Starting ffmpeg with .m3u8 URL: ${m3u8Url}`);
+    ffmpeg(m3u8Url)
+      .outputOptions('-c copy') // Copy both audio and video streams
+      .on('start', commandLine => {
+        console.log(`ffmpeg process started with command: ${commandLine}`);
+      })
+      .on('progress', progress => {
+        console.log(`ffmpeg progress: ${JSON.stringify(progress)}`);
+      })
+      .on('end', () => {
+        console.log('ffmpeg process finished successfully');
+        resolve(outputFilePath);
+      })
+      .on('error', err => {
+        console.error(`ffmpeg error: ${err.message}`);
+        reject(err);
+      })
+      .save(outputFilePath);
+  });
+}
+
+export default async (req, res) => {
+  const { url } = req.query;
+
+  if (!url) {
+    console.error('Missing URL');
+    res.status(400).json({ error: 'Missing URL' });
+    return;
+  }
+
+  try {
+    console.log('Fetching m3u8 URLs...');
+    const m3u8Urls = await getM3U8Urls(url);
+    console.log(`Fetched m3u8 URLs: ${m3u8Urls}`);
+
+    console.log('Finding valid video m3u8 URL...');
+    const m3u8Url = await findVideoM3U8(m3u8Urls);
+    console.log(`Valid video m3u8 URL found: ${m3u8Url}`);
+
+    console.log('Downloading video...');
+    const outputFilePath = await downloadVideo(m3u8Url);
+    console.log(`Video downloaded successfully: ${outputFilePath}`);
+
+    res.setHeader('Content-Disposition', 'attachment; filename=output.mp4');
+    res.sendFile(outputFilePath, err => {
+      if (err) {
+        console.error('Error sending file:', err);
+        res.status(500).json({ error: 'Failed to send video file' });
+      } else {
+        fs.unlinkSync(outputFilePath); // Clean up the file after sending
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
