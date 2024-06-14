@@ -61,7 +61,6 @@ export default function ToolTwo() {
 
 /Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/components/Navbar.tsx:
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ConnectButton, useActiveAccount } from "thirdweb/react";
 import { fetchUserProfile } from "../consts/fetchUserProfile";
@@ -69,12 +68,13 @@ import { generatePayload, isLoggedIn, login, logout } from "../actions/auth";
 import { createWallet } from "thirdweb/wallets";
 import { client } from "../consts/client";
 import { hasAccess } from "../actions/gate-condition";
+import Link from "next/link";
+
 interface UserProfile {
   pfp_url: string;
   display_name: string;
   username: string;
 }
-
 
 const wallets = [
   createWallet("io.metamask"),
@@ -96,6 +96,10 @@ const Navbar = () => {
         .catch((error) => console.error("Error fetching profile:", error));
 
       hasAccess(account.address).then((access) => setHasNFTAccess(access));
+    } else {
+      // Clear user profile and NFT access when account is disconnected
+      setUserProfile(null);
+      setHasNFTAccess(false);
     }
   }, [account]);
 
@@ -107,9 +111,6 @@ const Navbar = () => {
           <h1 className="text-lg font-bold text-white">Acme Inc.</h1>
         </div>
         <nav className="flex items-center gap-4">
-          <Link href="/" className="text-gray-400 hover:text-white transition-colors" prefetch={false}>Home</Link>
-          <Link href="/tool-one" className="text-gray-400 hover:text-white transition-colors" prefetch={false}>Tool One</Link>
-          <Link href="/tool-two" className="text-gray-400 hover:text-white transition-colors" prefetch={false}>Tool Two</Link>
           {userProfile && (
             <>
               <img src={userProfile.pfp_url} alt="Profile Picture" className="w-8 h-8 rounded-full" />
@@ -267,19 +268,168 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 /Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/actions/gate-condition.ts:
 
-// src/app/actions/gate-condition.ts
 import { getContract } from "thirdweb";
-import { avalancheFuji, base } from "thirdweb/chains";
+import { base, zora } from "thirdweb/chains";
 import { client } from "../consts/client";
 import { balanceOf as balanceOfERC721 } from "thirdweb/extensions/erc721";
 import { balanceOf as balanceOfERC20 } from "thirdweb/extensions/erc20";
+import { getOwnedNFTs } from "thirdweb/extensions/erc1155";
+import axios from 'axios'; // Use axios
+
+// Define the response type for GraphQL
+type GraphQLResponse = {
+  data: {
+    TokenBalances: {
+      TokenBalance: {
+        owner: {
+          addresses: string[];
+          domains: { name: string; isPrimary: boolean }[];
+          socials: {
+            dappName: string;
+            profileName: string;
+            userAssociatedAddresses: string[];
+          }[];
+          xmtp: { isXMTPEnabled: boolean }[];
+        };
+      }[];
+    };
+  };
+  errors?: any[];
+};
+
+// Airstack API key and URL
+const API_KEY = process.env.NEXT_PUBLIC_AIRSTACK_API as string;
+const API_URL = "https://api.airstack.xyz/gql";
 
 export async function hasAccess(address: string): Promise<boolean> {
-  return await example_hasSomeErc721Tokens(address);
+  console.log(`Checking access for address: ${address}`);
+  const hasAccess = await hasSomeErc1155TokensAirstack(address);
+  console.log(`Access granted: ${hasAccess}`);
+  return hasAccess;
+  // Uncomment to use other access checks
+  // return await example_hasSomeErc721Tokens(address);
   // return await example_hasSomeErc20Tokens(address);
 }
 
+// Airstack check for ERC1155 tokens
+async function hasSomeErc1155TokensAirstack(address: string): Promise<boolean> {
+  console.log(`Checking ERC1155 tokens for address: ${address} using Airstack`);
+
+  const specificTokenAddress = "0xc45D05a4a77351DE33504fB535a07A5B6aB7d5fc"; // Adjust if necessary
+  const query = `
+  query MyQuery {
+    TokenBalances(
+      input: {
+        filter: {
+          tokenAddress: { _eq: "${specificTokenAddress}" }
+          owner: { _eq: "${address}" }
+        }
+        blockchain: base
+      }
+    ) {
+      TokenBalance {
+        owner {
+          addresses
+          domains {
+            name
+            isPrimary
+          }
+          socials {
+            dappName
+            profileName
+            userAssociatedAddresses
+          }
+          xmtp {
+            isXMTPEnabled
+          }
+        }
+      }
+    }
+  }
+  `;
+
+  try {
+    const response = await axios.post(API_URL, { query }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`
+      }
+    });
+
+    const result: GraphQLResponse = response.data as GraphQLResponse;
+
+    if (result.errors) {
+      console.error("GraphQL errors:", result.errors);
+      return false;
+    } else {
+      const data = result.data;
+      const tokenBalances = data.TokenBalances.TokenBalance;
+
+      console.log("API Response:", JSON.stringify(data, null, 2));
+
+      const found = tokenBalances && tokenBalances.length > 0;
+      console.log(`Token balance for address ${specificTokenAddress} and owner ${address} ${found ? 'found' : 'not found'}.`);
+
+      return found;
+    }
+  } catch (error) {
+    console.error("Error fetching data from Airstack:", error);
+    return false;
+  }
+}
+
+// Original ERC1155 check method (commented out)
+/*
+async function hasSomeErc1155Tokens(address: string) {
+  console.log(`Checking ERC1155 tokens for address: ${address}`);
+
+  const erc1155Contract = getContract({
+    address: "0x73985af95e2864a62dda9a9504aad29527611716",
+    chain: zora,
+    client,
+  });
+
+  console.log(`ERC1155 contract details:`, {
+    address: erc1155Contract.address,
+    chain: erc1155Contract.chain,
+    client: erc1155Contract.client,
+  });
+
+  try {
+    console.log(`Calling getOwnedNFTs with address: ${address}`);
+    const nfts = await getOwnedNFTs({
+      contract: erc1155Contract,
+      start: 0,
+      count: 10,
+      address,
+    });
+
+    console.log(`Owned NFTs:`, nfts);
+
+    const ownsNFTs = nfts.length > 0;
+    console.log(`ERC1155 ownership status for address ${address}: ${ownsNFTs}`);
+    return ownsNFTs;
+  } catch (error: any) {
+    console.error(`Error checking ERC1155 tokens for address ${address}: ${error.message}`);
+    console.error(`Error details:`, error);
+
+    if (error.data && error.data.reason) {
+      console.error(`Revert reason: ${error.data.reason}`);
+    }
+
+    console.error(`Error code: ${error.code}`);
+    console.error(`Error message: ${error.message}`);
+    console.error(`Error data:`, error.data);
+    console.error(`Error stack:`, error.stack);
+
+    return false;
+  }
+}
+*/
+
 async function example_hasSomeErc721Tokens(address: string) {
+  console.log(`Checking ERC721 tokens for address: ${address}`);
+
   const requiredQuantity = 1n;
 
   const erc721Contract = getContract({
@@ -288,33 +438,49 @@ async function example_hasSomeErc721Tokens(address: string) {
     client,
   });
 
-  const ownedBalance = await balanceOfERC721({
-    contract: erc721Contract,
-    owner: address,
-  });
+  console.log(`ERC721 contract details:`, erc721Contract);
 
-  console.log({ ownedBalance });
+  try {
+    const ownedBalance = await balanceOfERC721({
+      contract: erc721Contract,
+      owner: address,
+    });
 
-  return ownedBalance >= requiredQuantity;
+    console.log(`Owned ERC721 token balance for address ${address}:`, ownedBalance);
+
+    return ownedBalance >= requiredQuantity;
+  } catch (error) {
+    console.error(`Error checking ERC721 tokens for address ${address}:`, error);
+    return false;
+  }
 }
 
 async function example_hasSomeErc20Tokens(address: string) {
-  const requiredQuantity = 10n; // 10 erc20 token
+  console.log(`Checking ERC20 tokens for address: ${address}`);
+
+  const requiredQuantity = 10n; // 10 erc20 tokens
 
   const erc20Contract = getContract({
     address: "0xff63fC310D47ef80961056AC8Df0B3f1a9e3eF58",
-    chain: avalancheFuji,
+    chain: base,
     client,
   });
 
-  const ownedBalance = await balanceOfERC20({
-    contract: erc20Contract,
-    address,
-  });
+  console.log(`ERC20 contract details:`, erc20Contract);
 
-  console.log({ ownedBalance });
+  try {
+    const ownedBalance = await balanceOfERC20({
+      contract: erc20Contract,
+      address,
+    });
 
-  return ownedBalance >= requiredQuantity;
+    console.log(`Owned ERC20 token balance for address ${address}:`, ownedBalance);
+
+    return ownedBalance >= requiredQuantity;
+  } catch (error) {
+    console.error(`Error checking ERC20 tokens for address ${address}:`, error);
+    return false;
+  }
 }
 
 
@@ -430,10 +596,11 @@ export default async function GatedPage() {
 const MustLogin = () => (
   <div className="flex flex-col items-center justify-center min-h-screen bg-gray-800 text-white">
     <div className="text-center">
-      You are not logged in. <br />
-      <a href="/" className="underline text-primary">
+      You are not Signed in. <br />
+      
+      <p  className="underline text-primary">
         Log in now
-      </a>
+      </p>
     </div>
   </div>
 );
@@ -520,17 +687,23 @@ export const client = createThirdwebClient({
 
 /Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/consts/fetchUserProfile.ts:
 
-import fetch from "node-fetch";
+import axios from 'axios'; // Use axios
+
+// Define the NeynarResponse type
+type NeynarResponse = {
+  [key: string]: {
+    pfp_url: string;
+    display_name: string;
+    username: string;
+  }[];
+};
 
 // Directly setting the API key for testing purposes
-const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API || ""
+const apiKey = process.env.NEXT_PUBLIC_NEYNAR_API || "";
 const url = "https://api.neynar.com/v2/farcaster/user/bulk-by-address";
 
 export async function fetchUserProfile(address: string) {
-  
-
   const options = {
-    method: "GET",
     headers: {
       accept: "application/json",
       api_key: apiKey,
@@ -540,19 +713,15 @@ export async function fetchUserProfile(address: string) {
   console.log("Request options:", options);
 
   try {
-    const response = await fetch(`${url}?addresses=${address}&viewer_fid=3`, options);
+    const response = await axios.get(`${url}?addresses=${address}&viewer_fid=3`, options);
     console.log("Response status:", response.status);
     console.log("Response headers:", response.headers);
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error("Unauthorized: Invalid API key or insufficient permissions");
-      } else {
-        throw new Error(`Error: ${response.statusText}`);
-      }
+    if (response.status === 401) {
+      throw new Error("Unauthorized: Invalid API key or insufficient permissions");
     }
 
-    const data = await response.json();
+    const data: NeynarResponse = response.data as NeynarResponse;
     console.log("Response data:", data);
 
     // Check if the address key exists and has an array with at least one element

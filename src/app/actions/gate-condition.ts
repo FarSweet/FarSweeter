@@ -3,7 +3,6 @@ import { base, zora } from "thirdweb/chains";
 import { client } from "../consts/client";
 import { balanceOf as balanceOfERC721 } from "thirdweb/extensions/erc721";
 import { balanceOf as balanceOfERC20 } from "thirdweb/extensions/erc20";
-import { getOwnedNFTs } from "thirdweb/extensions/erc1155";
 import axios from 'axios'; // Use axios
 
 // Define the response type for GraphQL
