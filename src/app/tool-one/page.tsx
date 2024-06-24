@@ -1,28 +1,13 @@
-// src/app/tool-one/page.tsx
 "use client";
 import { useState, useEffect } from "react";
-import { useActiveAccount } from "thirdweb/react";
-import { hasAccess } from "../actions/gate-condition";
-import { LoginButton } from "../consts/LoginButton";
-import ProModal from "../components/ProModal";
 
 export default function ToolOne() {
   const [loading, setLoading] = useState(false);
   const [url, setUrl] = useState("");
   const [posterUrl, setPosterUrl] = useState("");
   const [downloadComplete, setDownloadComplete] = useState(false);
-  const [hasNFTAccess, setHasNFTAccess] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const account = useActiveAccount();
 
-  useEffect(() => {
-    if (account) {
-      hasAccess(account.address).then((access) => setHasNFTAccess(access));
-    } else {
-      setHasNFTAccess(false);
-    }
-  }, [account]);
-
+  // Fetch the poster image when the URL is entered
   const fetchPoster = async (url: string) => {
     if (url) {
       try {
@@ -43,11 +28,6 @@ export default function ToolOne() {
   };
 
   const handleDownload = async () => {
-    if (!account || !hasNFTAccess) {
-      setShowModal(true);
-      return;
-    }
-
     setLoading(true);
     setDownloadComplete(false);
     try {
@@ -87,7 +67,7 @@ export default function ToolOne() {
           fetchPoster(e.target.value);
         }}
         placeholder="Enter Warpcast URL"
-        className="mb-4 p-2 border border-gray-300 rounded text-black"
+        className="mb-4 p-2 border border-gray-300 rounded text-black  "
       />
       {posterUrl && (
         <div className="mb-4">
@@ -115,7 +95,6 @@ export default function ToolOne() {
           </svg>
         </div>
       )}
-      <ProModal show={showModal} onClose={() => setShowModal(false)} />
     </div>
   );
 }
