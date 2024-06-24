@@ -4,7 +4,9 @@
 │   │   ├── auth.ts
 │   │   └── gate-condition.ts
 │   ├── components
+│   │   ├── Launchpad.tsx
 │   │   ├── Navbar.tsx
+│   │   ├── ProModal.tsx
 │   │   └── Sidebar.tsx
 │   ├── consts
 │   │   ├── LoginButton.tsx
@@ -17,15 +19,20 @@
 │   ├── globals.css
 │   ├── layout.tsx
 │   ├── page.tsx
+│   ├── styles
+│   │   └── launchpad.css
 │   ├── tool-one
+│   │   ├── buttonStyles.css
 │   │   └── page.tsx
 │   └── tool-two
 │       └── page.tsx
-└── pages
-    └── api
-        └── downloadVideo.js
+├── pages
+│   └── api
+│       ├── downloadVideo.js
+│       └── getPoster.js
+└── supabase.js
 
-10 directories, 16 files
+11 directories, 22 files
 
 
 Contents of the files:
@@ -34,30 +41,76 @@ Contents of the files:
 
 /Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/tool-one/page.tsx:
 
+// src/app/tool-one/page.tsx
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useActiveAccount } from "thirdweb/react";
+import { hasAccess } from "../actions/gate-condition";
+import { LoginButton } from "../consts/LoginButton";
+import ProModal from "../components/ProModal";
 
 export default function ToolOne() {
   const [loading, setLoading] = useState(false);
+  const [url, setUrl] = useState("");
+  const [posterUrl, setPosterUrl] = useState("");
+  const [downloadComplete, setDownloadComplete] = useState(false);
+  const [hasNFTAccess, setHasNFTAccess] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const account = useActiveAccount();
+
+  useEffect(() => {
+    if (account) {
+      hasAccess(account.address).then((access) => setHasNFTAccess(access));
+    } else {
+      setHasNFTAccess(false);
+    }
+  }, [account]);
+
+  const fetchPoster = async (url: string) => {
+    if (url) {
+      try {
+        const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+        const response = await fetch(`/api/getPoster?url=${encodeURIComponent(formattedUrl)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setPosterUrl(data.posterUrl);
+        } else {
+          setPosterUrl("");
+          console.error('Failed to fetch poster URL');
+        }
+      } catch (error) {
+        setPosterUrl("");
+        console.error('Error fetching poster URL:', error);
+      }
+    }
+  };
 
   const handleDownload = async () => {
+    if (!account || !hasNFTAccess) {
+      setShowModal(true);
+      return;
+    }
+
     setLoading(true);
+    setDownloadComplete(false);
     try {
       console.log("Initiating download...");
-      const response = await fetch("/api/downloadVideo?url=https://warpcast.com/kenny/0x5dcd36a9");
+      const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+      const response = await fetch(`/api/downloadVideo?url=${encodeURIComponent(formattedUrl)}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.style.display = "none";
-      a.href = url;
+      a.href = downloadUrl;
       a.download = "output.mp4";
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(downloadUrl);
       console.log("Video download started");
+      setDownloadComplete(true);
     } catch (error) {
       console.error("Error downloading video:", error);
     } finally {
@@ -66,12 +119,46 @@ export default function ToolOne() {
   };
 
   return (
-    <div>
-      <h1>Tool One</h1>
-      <p>Only logged in users can use this tool once.</p>
-      <button onClick={handleDownload} disabled={loading}>
-        {loading ? "Downloading..." : "Download Video"}
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <h1 className="text-3xl font-bold mb-4">Video Downloader</h1>
+      <p className="mb-4"></p>
+      <input
+        type="text"
+        value={url}
+        onChange={(e) => {
+          setUrl(e.target.value);
+          fetchPoster(e.target.value);
+        }}
+        placeholder="Enter Warpcast URL"
+        className="mb-4 p-2 border border-gray-300 rounded text-black"
+      />
+      {posterUrl && (
+        <div className="mb-4">
+          <img src={posterUrl} alt="Poster" className="max-h-64 aspect-ratio rounded" />
+        </div>
+      )}
+      <button
+        onClick={handleDownload}
+        disabled={loading}
+        className="bg-blue-500 text-white p-2 rounded disabled:opacity-50"
+      >
+        {loading ? (
+          <div className="flex items-center">
+            <div className="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 mr-2"></div>
+            {downloadComplete ? "Download Complete" : "Downloading..."}
+          </div>
+        ) : (
+          "Download Video"
+        )}
       </button>
+      {downloadComplete && !loading && (
+        <div className="mt-4 text-green-500">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.707-4.707a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+        </div>
+      )}
+      <ProModal show={showModal} onClose={() => setShowModal(false)} />
     </div>
   );
 }
@@ -177,45 +264,233 @@ const MountainIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/components/ProModal.tsx:
+
+// src/app/components/ProModal.tsx
+import React, { useEffect, useState } from 'react';
+
+interface ProModalProps {
+  show: boolean;
+  onClose: () => void;
+}
+
+const ProModal: React.FC<ProModalProps> = ({ show, onClose }) => {
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  useEffect(() => {
+    if (show) {
+      setIframeLoaded(true);
+    }
+  }, [show]);
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 overflow-auto">
+      <div className="bg-white p-6 rounded shadow-md text-center relative w-11/12 md:w-1/2 max-w-3xl">
+        <button onClick={onClose} className="absolute top-0 right-0 mt-4 mr-4 bg-gray-800 text-white py-2 px-4 rounded">
+          Close
+        </button>
+        <h2 className="text-xl font-bold mb-4 bg-gray-200 text-gray-800 py-2 px-4 rounded">
+          You need to mint this NFT to use Pro tools
+        </h2>
+        <div className="mb-4" style={{ position: 'relative', width: '100%', paddingTop: 'calc(56.25% + 72px)', maxWidth: '500px', margin: '0 auto' }}>
+          {iframeLoaded ? (
+            <iframe
+              src="https://zora.co/collect/base:0x2755581dbb19a75693a28e593ddb2a73c1048563/17/embed?referrer=0x6f25A0DD4c3BD4eF1A89916B3E0162061249885a"
+              style={{ border: 0, backgroundColor: 'transparent', position: 'absolute', inset: 0 }}
+              width="100%"
+              height="100%"
+              allowTransparency
+              allowFullScreen
+              sandbox="allow-pointer-lock allow-same-origin allow-scripts allow-popups"
+            ></iframe>
+          ) : (
+            <div className="loader">Loading...</div>
+          )}
+        </div>
+        <a
+          href="https://zora.co/collect/base:0x2755581dbb19a75693a28e593ddb2a73c1048563/17"
+          style={{ padding: '12px', textDecoration: 'none', color: '#b3b3b3', fontFamily: "'Inter', system-ui", fontSize: '10px', lineHeight: '12px', fontStyle: 'normal', fontWeight: 400 }}
+        >
+          B.U.I.L.D on Zora
+        </a>
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Go Pro to use this tool</h2>
+        <p className="mb-4 text-gray-800">You need to be a Pro user to use this tool.</p>
+        <a href="/pro" className="text-blue-500 underline">Learn more about going Pro</a>
+      </div>
+    </div>
+  );
+};
+
+export default ProModal;
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/components/Launchpad.tsx:
+
+// src/app/components/Launchpad.tsx
+import { useEffect } from "react";
+import $ from "jquery";
+import "../styles/launchpad.css";
+
+const Launchpad = () => {
+  useEffect(() => {
+    const launchpad = $("#launchpad"),
+      open = function () {
+        launchpad.addClass("shown start");
+        launchpad.find("nav").addClass("scale-down");
+      },
+      close = function () {
+        launchpad.removeClass("start").addClass("end");
+        launchpad
+          .find("nav")
+          .removeClass("scale-down")
+          .addClass("scale-up");
+        setTimeout(() => {
+          launchpad.removeClass("shown end");
+          launchpad.find("nav").removeClass("scale-up");
+        }, 350);
+      };
+
+    $(".open-menu").on("click", open);
+
+    $(document).mouseup((e: JQuery.MouseUpEvent) => {
+      const content = launchpad.find(".content"),
+        nav = content.find("nav");
+
+      if (content.is(e.target) || nav.is(e.target)) {
+        close();
+      }
+    });
+
+    return () => {
+      $(".open-menu").off("click", open);
+      $(document).off("mouseup");
+    };
+  }, []);
+
+  return (
+    <div>
+      <div className="window">
+        <h1>Mac launchpad in CSS</h1>
+        <p>
+          A simple demonstration of the Mac launchpad effect in CSS. JavaScript
+          is used to control when the effect is triggered or removed.
+        </p>
+        <p>
+          Made by{" "}
+          <a href="http://migueljimenez.co" target="_blank" rel="noopener noreferrer">
+            Miguel Jiménez
+          </a>{" "}
+          |{" "}
+          <a
+            target="_blank"
+            href="https://twitter.com/jachinte"
+            rel="noopener noreferrer"
+          >
+            @jachinte
+          </a>
+        </p>
+        <p>
+          You may also like{" "}
+          <a
+            href="https://codepen.io/jachinte/pen/bVNraO"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Mission Control in CSS
+          </a>
+        </p>
+        <a title="Click to open" className="open-menu launchpad-icon"></a>
+      </div>
+      
+      <div id="launchpad">
+        <div className="content">
+          <nav>
+            <a className="icon-safari">Safari</a>
+            <a className="icon-notes">Notes</a>
+            <a className="icon-facetime">Facetime</a>
+            <a className="icon-appstore">App store</a>
+            <a className="icon-dictionary">Dictionary</a>
+            <a className="icon-texteditor">Text Editor</a>
+            <a className="icon-monitor">Activity Monitor</a>
+            <a className="icon-airport">AirPort Utility</a>
+            <a className="icon-chromium">Chromium</a>
+            <a className="icon-opera">Opera</a>
+            <a className="icon-skydrive">Skydrive</a>
+            <a className="icon-twitter">Twitter</a>
+            <a className="icon-pinterest">Pinterest</a>
+            <a className="icon-imovie">iMovie</a>
+          </nav>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Launchpad;
+
+
 /Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/app/components/Sidebar.tsx:
 
+// src/app/components/Sidebar.tsx
 import Link from "next/link";
 
 const Sidebar = () => {
   return (
-    <div className="bg-gradient-to-b from-gray-900 to-gray-800 shadow-xl rounded-r-3xl w-64 p-6 flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <MountainIcon className="w-8 h-8 text-white" />
-        <h1 className="text-2xl font-bold text-white">Acme Inc.</h1>
+    <div className="bg-gradient-to-b from-gray-900 to-gray-800 shadow-xl rounded-r-3xl w-64 h-screen flex flex-col justify-between">
+      <div className="flex flex-col gap-6 overflow-y-auto">
+        <div className="flex items-center gap-3 p-6">
+          <MountainIcon className="w-8 h-8 text-white" />
+          <h1 className="text-2xl font-bold text-white">Acme Inc.</h1>
+        </div>
+        <nav className="flex flex-col gap-2 px-6">
+          <div className="text-gray-400 font-medium">Main</div>
+          <Link href="/" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <HomeIcon className="w-5 h-5" />
+            Home
+          </Link>
+          <Link href="/tool-one" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <CompassIcon className="w-5 h-5" />
+            Tool One
+          </Link>
+          <Link href="/tool-two" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <ActivityIcon className="w-5 h-5" />
+            Tool Two
+          </Link>
+          <div className="text-gray-400 font-medium mt-4">Discover</div>
+          <Link href="/gated-page" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <LayersIcon className="w-5 h-5" />
+            Gated Page
+          </Link>
+          <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <BookmarkIcon className="w-5 h-5" />
+            Saved
+          </Link>
+          <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <TrendingUpIcon className="w-5 h-5" />
+            Trending
+          </Link>
+        </nav>
       </div>
-      <nav className="flex flex-col gap-2">
-        <div className="text-gray-400 font-medium">Main</div>
-        <Link href="/" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <HomeIcon className="w-5 h-5" />
-          Home
-        </Link>
-        <Link href="/tool-one" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <CompassIcon className="w-5 h-5" />
-          Tool One
-        </Link>
-        <Link href="/tool-two" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <ActivityIcon className="w-5 h-5" />
-          Tool Two
-        </Link> 
-        <div  className="text-gray-400 font-medium mt-4">Discover</div>
-        <Link href="/gated-page" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <LayersIcon className="w-5 h-5" />
-          Gated Page
-        </Link>
-        <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <BookmarkIcon className="w-5 h-5" />
-          Saved
-        </Link>
-        <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <TrendingUpIcon className="w-5 h-5" />
-          Trending
-        </Link>
-      </nav>
+      <div className="bg-gray-900 p-2 rounded-lg sticky bottom-0">
+        <div style={{ position: 'relative', width: '100%', paddingTop: 'calc(100% + 72px)' }}>
+          <iframe
+            src="https://zora.co/collect/base:0x2755581dbb19a75693a28e593ddb2a73c1048563/17/embed?referrer=0x6f25A0DD4c3BD4eF1A89916B3E0162061249885a"
+            style={{ border: 0, backgroundColor: 'transparent', position: 'absolute', inset: 0 }}
+            width="100%"
+            height="100%"
+            allowFullScreen
+            sandbox="allow-pointer-lock allow-same-origin allow-scripts allow-popups"
+          ></iframe>
+        </div>
+        <a
+          href="https://zora.co/collect/base:0x2755581dbb19a75693a28e593ddb2a73c1048563/17"
+          style={{ padding: '12px', textDecoration: 'none', color: '#b3b3b3', fontFamily: "'Inter', system-ui", fontSize: '10px', lineHeight: '12px', fontStyle: 'normal', fontWeight: 400 }}
+        >
+          B.U.I.L.D on Zora
+        </a>
+      </div>
     </div>
   );
 };
@@ -560,17 +835,41 @@ export async function logout() {
 "use client";
 
 import { useActiveAccount } from "thirdweb/react";
+import 'styles/launchpad.css'; // Ensure you have the CSS file in the correct path
 
 export default function Home() {
   const account = useActiveAccount();
+
   return (
-    <div className="p-4">
-      <h1 className="text-3xl font-bold text-primary">Welcome to My SaaS App</h1>
+    <div className="p-4 flex flex-col items-center min-h-screen">
+      <h1 className="text-3xl font-bold text-primary mb-4">Welcome to My SaaS App</h1>
       {account && (
         <div className="mt-12 text-center text-secondary">
           You are logged in.
         </div>
       )}
+      <div className="launchpad-container">
+        <div id="launchpad">
+          <div className="content">
+            <nav>
+              <a className="icon-safari">Safari</a>
+              <a className="icon-notes">Notes</a>
+              <a className="icon-facetime">Facetime</a>
+              <a className="icon-appstore">App store</a>
+              <a className="icon-dictionary">Dictionary</a>
+              <a className="icon-texteditor">Text Editor</a>
+              <a className="icon-monitor">Activity Monitor</a>
+              <a className="icon-airport">AirPort Utility</a>
+              <a className="icon-chromium">Chromium</a>
+              <a className="icon-opera">Opera</a>
+              <a className="icon-skydrive">Skydrive</a>
+              <a className="icon-twitter">Twitter</a>
+              <a className="icon-pinterest">Pinterest</a>
+              <a className="icon-imovie">iMovie</a>
+            </nav>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -779,6 +1078,52 @@ export async function fetchUserProfile(address: string) {
 }
 
 
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/supabase.js:
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+export async function getOrCreateUser(walletAddress, ens) {
+  let { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('wallet_address', walletAddress)
+    .single();
+
+  if (error && error.code === 'PGRST116') {
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([
+        {
+          wallet_address: walletAddress,
+          ens: ens,
+          credits: 3,  // Default for free users
+          credit_type: 'Free',
+        },
+      ])
+      .single();
+
+    if (insertError) throw insertError;
+    return newUser;
+  }
+
+  return data;
+}
+
+export async function updateUserCredits(walletAddress, credits) {
+  const { data, error } = await supabase
+    .from('users')
+    .update({ credits })
+    .eq('wallet_address', walletAddress);
+
+  if (error) throw error;
+  return data;
+}
+
+
 /Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/pages/api/downloadVideo.js:
 
 import puppeteer from 'puppeteer';
@@ -788,70 +1133,88 @@ import fs from 'fs';
 import axios from 'axios';
 import os from 'os';
 
+// Function to fetch m3u8 URLs from a given webpage
 async function getM3U8Urls(pageUrl) {
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
-  const m3u8Urls = [];
+  try {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+    const m3u8Urls = [];
 
-  page.on('request', request => {
-    if (request.url().includes('.m3u8')) {
-      console.log(`Intercepted .m3u8 URL: ${request.url()}`);
-      m3u8Urls.push(request.url());
+    page.on('request', request => {
+      if (request.url().includes('.m3u8')) {
+        console.log(`Intercepted .m3u8 URL: ${request.url()}`);
+        m3u8Urls.push(request.url());
+      }
+    });
+
+    await page.goto(pageUrl, { waitUntil: 'networkidle0' });
+    await browser.close();
+
+    if (m3u8Urls.length === 0) {
+      throw new Error('Failed to find any .m3u8 URL');
     }
-  });
 
-  await page.goto(pageUrl, { waitUntil: 'networkidle0' });
-  await browser.close();
-
-  if (m3u8Urls.length === 0) {
-    throw new Error('Failed to find any .m3u8 URL');
+    return m3u8Urls;
+  } catch (error) {
+    console.error('Error in getM3U8Urls:', error);
+    throw error;
   }
-
-  return m3u8Urls;
 }
 
+// Function to find the valid video m3u8 URL
 async function findVideoM3U8(m3u8Urls) {
-  for (const url of m3u8Urls) {
-    console.log(`Checking .m3u8 URL: ${url}`);
-    const response = await axios.get(url);
-    const content = response.data;
+  try {
+    for (const url of m3u8Urls) {
+      console.log(`Checking .m3u8 URL: ${url}`);
+      const response = await axios.get(url);
+      const content = response.data;
 
-    // Check if the .m3u8 content references video segments
-    if (content.includes('#EXT-X-STREAM-INF')) {
-      console.log(`Selected .m3u8 URL: ${url}`);
-      return url;
+      if (content.includes('#EXT-X-STREAM-INF')) {
+        console.log(`Selected .m3u8 URL: ${url}`);
+        return url;
+      }
     }
+
+    throw new Error('No valid video .m3u8 URL found');
+  } catch (error) {
+    console.error('Error in findVideoM3U8:', error);
+    throw error;
   }
-
-  throw new Error('No valid video .m3u8 URL found');
 }
 
+// Function to download the video using ffmpeg
 async function downloadVideo(m3u8Url) {
-  const tempDir = os.tmpdir();
-  const outputFilePath = path.join(tempDir, 'output.mp4');
+  try {
+    const tempDir = os.tmpdir();
+    const outputFilePath = path.join(tempDir, 'output.mp4');
 
-  return new Promise((resolve, reject) => {
-    console.log(`Starting ffmpeg with .m3u8 URL: ${m3u8Url}`);
-    ffmpeg(m3u8Url)
-      .outputOptions('-c copy') // Copy both audio and video streams
-      .on('start', commandLine => {
-        console.log(`ffmpeg process started with command: ${commandLine}`);
-      })
-      .on('progress', progress => {
-        console.log(`ffmpeg progress: ${JSON.stringify(progress)}`);
-      })
-      .on('end', () => {
-        console.log('ffmpeg process finished successfully');
-        resolve(outputFilePath);
-      })
-      .on('error', err => {
-        console.error(`ffmpeg error: ${err.message}`);
-        reject(err);
-      })
-      .save(outputFilePath);
-  });
+    return new Promise((resolve, reject) => {
+      console.log(`Starting ffmpeg with .m3u8 URL: ${m3u8Url}`);
+      ffmpeg(m3u8Url)
+        .outputOptions('-c copy')
+        .on('start', commandLine => {
+          console.log(`ffmpeg process started with command: ${commandLine}`);
+        })
+        .on('progress', progress => {
+          console.log(`ffmpeg progress: ${JSON.stringify(progress)}`);
+        })
+        .on('end', () => {
+          console.log('ffmpeg process finished successfully');
+          resolve(outputFilePath);
+        })
+        .on('error', err => {
+          console.error(`ffmpeg error: ${err.message}`);
+          reject(err);
+        })
+        .save(outputFilePath);
+    });
+  } catch (error) {
+    console.error('Error in downloadVideo:', error);
+    throw error;
+  }
 }
 
+// Main API route handler for downloading the video
 export default async (req, res) => {
   const { url } = req.query;
 
@@ -874,17 +1237,76 @@ export default async (req, res) => {
     const outputFilePath = await downloadVideo(m3u8Url);
     console.log(`Video downloaded successfully: ${outputFilePath}`);
 
-    res.setHeader('Content-Disposition', 'attachment; filename=output.mp4');
-    res.sendFile(outputFilePath, err => {
+    fs.readFile(outputFilePath, (err, data) => {
       if (err) {
-        console.error('Error sending file:', err);
-        res.status(500).json({ error: 'Failed to send video file' });
-      } else {
-        fs.unlinkSync(outputFilePath); // Clean up the file after sending
+        console.error('Error reading the file:', err);
+        res.status(500).json({ error: 'Failed to read the video file' });
+        return;
       }
+
+      res.setHeader('Content-Disposition', 'attachment; filename=output.mp4');
+      res.setHeader('Content-Type', 'video/mp4');
+      res.end(data, 'binary', () => {
+        console.log('File sent successfully');
+        fs.unlinkSync(outputFilePath);
+      });
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in API handler:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+/Users/qualia/Desktop/Backup/untitled folder/Gated/gated-content-example/src/pages/api/getPoster.js:
+
+import puppeteer from 'puppeteer';
+
+// Function to fetch the poster image URL from a given webpage
+async function getPosterUrl(pageUrl) {
+  try {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+
+    await page.goto(pageUrl, { waitUntil: 'networkidle0' });
+
+    // Extract the poster image URL from the page content
+    const posterUrl = await page.evaluate(() => {
+      const imgElement = document.querySelector('.vds-poster');
+      return imgElement ? imgElement.src : null;
+    });
+
+    await browser.close();
+
+    if (!posterUrl) {
+      throw new Error('Failed to find poster image URL');
+    }
+
+    return posterUrl;
+  } catch (error) {
+    console.error('Error in getPosterUrl:', error);
+    throw error;
+  }
+}
+
+// New API route handler for fetching the poster URL
+export default async (req, res) => {
+  const { url } = req.query;
+
+  if (!url) {
+    console.error('Missing URL');
+    res.status(400).json({ error: 'Missing URL' });
+    return;
+  }
+
+  try {
+    console.log('Fetching poster URL...');
+    const posterUrl = await getPosterUrl(url);
+    console.log(`Fetched poster URL: ${posterUrl}`);
+
+    res.status(200).json({ posterUrl });
+  } catch (error) {
+    console.error('Error in API handler:', error);
     res.status(500).json({ error: error.message });
   }
 };

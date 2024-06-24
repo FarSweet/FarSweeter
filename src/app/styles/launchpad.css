@@ -1,0 +1,47 @@
+/* Add the necessary styles for the launchpad icons within the page layout */
+#launchpad {
+    display: block;
+    width: 100%;
+  }
+  
+  .launchpad-container {
+    width: 100%;
+    padding: 20px;
+  }
+  
+  #launchpad .content {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 20px;
+  }
+  
+  #launchpad .content nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  #launchpad .content nav a.app-icon {
+    color: white;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
+    font-size: 14px;
+    text-align: center;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+    display: inline-block;
+    margin: 20px;
+    width: 128px;
+    transition: transform 0.3s ease;
+  }
+  
+  #launchpad .content nav a.app-icon:hover {
+    transform: scale(1.2);
+  }
+  
+  #launchpad .content nav a.app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 15px;
+  }
+  

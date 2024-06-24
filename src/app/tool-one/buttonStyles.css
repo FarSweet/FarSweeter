@@ -1,0 +1,72 @@
+:root {
+  --m: 2rem; /* Adjust this value to change the size of the button */
+  --purple: #6B5FFF;
+  --blue: #4D8AFF;
+  --green: #5BFF89;
+  --yellow: #FFEE55;
+  --orange: #FF6D1B;
+}
+
+body {
+  background-color: #141516;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;:root {
+    --m: 4rem;
+    --purple: #6B5FFF;
+    --blue: #4D8AFF;
+    --green: #5BFF89;
+    --yellow: #FFEE55;
+    --orange: #FF6D1B;
+  }
+  
+  body {
+    background-color: #141516;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  
+  .rainbow-button {
+    border: calc(0.08 * var(--m)) solid transparent;
+    position: relative;
+    color: #F3F3F3;
+    font-family: 'Space Grotesk';
+    font-size: calc(0.5 * var(--m));
+    border-radius: calc(0.7 * var(--m));
+    padding: calc(0.25 * var(--m)) calc(0.5 * var(--m));
+    max-width: 200px; /* Limit the maximum width of the button */
+    max-height: 50px; /* Limit the maximum height of the button */
+  }
+  
+  @media screen and (max-width: 1000px) {
+    :root {
+      --m: 2rem;
+    }
+  }
+  overflow: auto; /* This will allow the page to scroll if the content is larger than the viewport */
+}
+
+.rainbow-button {
+  border: calc(0.08 * var(--m)) solid transparent;
+  position: relative;
+  color: #F3F3F3;
+  font-family: 'Space Grotesk';
+  font-size: calc(0.5 * var(--m)); /* Reduced font size */
+  border-radius: calc(0.7 * var(--m));
+  padding: calc(0.25 * var(--m)) calc(0.5 * var(--m)); /* Reduced padding */
+  display: flex;
+  justify-content: center;
+}
+
+@media screen and (max-width: 1000px) {
+  :root {
+    --m: 1rem; /* Adjust this value to change the size of the button on smaller screens */
+  }
+}

@@ -1,40 +1,61 @@
+// src/app/components/Sidebar.tsx
 import Link from "next/link";
 
 const Sidebar = () => {
   return (
-    <div className="bg-gradient-to-b from-gray-900 to-gray-800 shadow-xl rounded-r-3xl w-64 p-6 flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <MountainIcon className="w-8 h-8 text-white" />
-        <h1 className="text-2xl font-bold text-white">Acme Inc.</h1>
+    <div className="bg-gradient-to-b from-gray-900 to-gray-800 shadow-xl rounded-r-3xl w-64 h-screen flex flex-col justify-between">
+      <div className="flex flex-col gap-6 overflow-y-auto">
+        <div className="flex items-center gap-3 p-6">
+          <MountainIcon className="w-8 h-8 text-white" />
+          <h1 className="text-2xl font-bold text-white">Acme Inc.</h1>
+        </div>
+        <nav className="flex flex-col gap-2 px-6">
+          <div className="text-gray-400 font-medium">Main</div>
+          <Link href="/" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <HomeIcon className="w-5 h-5" />
+            FarApps
+          </Link>
+          <Link href="/tool-one" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <CompassIcon className="w-5 h-5" />
+            Warpcast Video Downloader
+          </Link>
+          <Link href="/tool-two" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <ActivityIcon className="w-5 h-5" />
+            Tool Two
+          </Link>
+          <div className="text-gray-400 font-medium mt-4">Discover</div>
+          <Link href="/gated-page" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <LayersIcon className="w-5 h-5" />
+            Gated Page
+          </Link>
+          <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <BookmarkIcon className="w-5 h-5" />
+            Saved
+          </Link>
+          <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
+            <TrendingUpIcon className="w-5 h-5" />
+            Trending
+          </Link>
+        </nav>
       </div>
-      <nav className="flex flex-col gap-2">
-        <div className="text-gray-400 font-medium">Main</div>
-        <Link href="/" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <HomeIcon className="w-5 h-5" />
-          Home
-        </Link>
-        <Link href="/tool-one" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <CompassIcon className="w-5 h-5" />
-          Tool One
-        </Link>
-        <Link href="/tool-two" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <ActivityIcon className="w-5 h-5" />
-          Tool Two
-        </Link> 
-        <div  className="text-gray-400 font-medium mt-4">Discover</div>
-        <Link href="/gated-page" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <LayersIcon className="w-5 h-5" />
-          Gated Page
-        </Link>
-        <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <BookmarkIcon className="w-5 h-5" />
-          Saved
-        </Link>
-        <Link href="#" className="flex items-center gap-3 text-white hover:bg-gray-700 hover:bg-opacity-50 rounded-lg p-2 transition-colors" prefetch={false}>
-          <TrendingUpIcon className="w-5 h-5" />
-          Trending
-        </Link>
-      </nav>
+      <div className="bg-gray-900 p-2 rounded-lg sticky bottom-0">
+        <div style={{ position: 'relative', width: '100%', paddingTop: 'calc(100% + 72px)' }}>
+          <iframe
+            src="https://zora.co/collect/base:0x2755581dbb19a75693a28e593ddb2a73c1048563/17/embed?referrer=0x6f25A0DD4c3BD4eF1A89916B3E0162061249885a"
+            style={{ border: 0, backgroundColor: 'transparent', position: 'absolute', inset: 0 }}
+            width="100%"
+            height="100%"
+            allowFullScreen
+            sandbox="allow-pointer-lock allow-same-origin allow-scripts allow-popups"
+          ></iframe>
+        </div>
+        <a
+          href="https://zora.co/collect/base:0x2755581dbb19a75693a28e593ddb2a73c1048563/17"
+          style={{ padding: '12px', textDecoration: 'none', color: '#b3b3b3', fontFamily: "'Inter', system-ui", fontSize: '10px', lineHeight: '12px', fontStyle: 'normal', fontWeight: 400 }}
+        >
+          B.U.I.L.D on Zora
+        </a>
+      </div>
     </div>
   );
 };
