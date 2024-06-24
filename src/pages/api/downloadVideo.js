@@ -11,6 +11,7 @@ async function getM3U8Urls(pageUrl) {
   try {
     console.log(`Launching Puppeteer to fetch m3u8 URLs for: ${pageUrl}`);
     const executablePath = puppeteer.executablePath();
+    console.log(`Using Chrome executable at: ${executablePath}`);
     browser = await puppeteer.launch({
       executablePath,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
