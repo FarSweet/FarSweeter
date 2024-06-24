@@ -1054,8 +1054,21 @@ import os from 'os';
 
 // Function to fetch m3u8 URLs from a given webpage
 async function getM3U8Urls(pageUrl) {
+  let browser;
   try {
-    const browser = await puppeteer.launch({ headless: true });
+    console.log(`Launching Puppeteer to fetch m3u8 URLs for: ${pageUrl}`);
+    const executablePath = process.env.VERCEL
+      ? (await puppeteer.executablePath())
+      : '/path/to/local/chrome';
+
+    console.log(`Using Chrome executable at: ${executablePath}`);
+
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath,
+      headless: true,
+    });
+
     const page = await browser.newPage();
     const m3u8Urls = [];
 
@@ -1067,6 +1080,7 @@ async function getM3U8Urls(pageUrl) {
     });
 
     await page.goto(pageUrl, { waitUntil: 'networkidle0' });
+    console.log(`Page loaded successfully for URL: ${pageUrl}`);
     await browser.close();
 
     if (m3u8Urls.length === 0) {
@@ -1076,6 +1090,7 @@ async function getM3U8Urls(pageUrl) {
     return m3u8Urls;
   } catch (error) {
     console.error('Error in getM3U8Urls:', error);
+    if (browser) await browser.close();
     throw error;
   }
 }

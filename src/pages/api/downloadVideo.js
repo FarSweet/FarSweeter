@@ -10,18 +10,11 @@ async function getM3U8Urls(pageUrl) {
   let browser;
   try {
     console.log(`Launching Puppeteer to fetch m3u8 URLs for: ${pageUrl}`);
-    const executablePath = process.env.VERCEL
-      ? (await puppeteer.executablePath())
-      : '/path/to/local/chrome';
-
-    console.log(`Using Chrome executable at: ${executablePath}`);
-
+    const executablePath = puppeteer.executablePath();
     browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
       executablePath,
-      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
-
     const page = await browser.newPage();
     const m3u8Urls = [];
 
@@ -51,6 +44,7 @@ async function getM3U8Urls(pageUrl) {
 // Function to find the valid video m3u8 URL
 async function findVideoM3U8(m3u8Urls) {
   try {
+    console.log(`Finding valid video m3u8 URL from: ${m3u8Urls}`);
     for (const url of m3u8Urls) {
       console.log(`Checking .m3u8 URL: ${url}`);
       const response = await axios.get(url);
@@ -72,6 +66,7 @@ async function findVideoM3U8(m3u8Urls) {
 // Function to download the video using ffmpeg
 async function downloadVideo(m3u8Url) {
   try {
+    console.log(`Downloading video from m3u8 URL: ${m3u8Url}`);
     const tempDir = os.tmpdir();
     const outputFilePath = path.join(tempDir, 'output.mp4');
 
@@ -106,7 +101,7 @@ export default async (req, res) => {
   const { url } = req.query;
 
   if (!url) {
-    console.error('Missing URL');
+    console.error('Missing URL in request');
     res.status(400).json({ error: 'Missing URL' });
     return;
   }
